@@ -1,0 +1,71 @@
+version: '3.9'
+
+networks:
+  nginx_network:
+    driver: bridge
+  postgres_network:
+    internal: true
+
+x-postgres:
+  &postgres-env
+  POSTGRES_NAME: postgres
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: db
+
+services:
+  db:
+    restart: always
+    image: postgres:latest
+    container_name: db
+    environment: *postgres-env
+    volumes:
+      - ./volumes/db:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - postgres_network
+
+  nginx:
+    restart: always
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./entrypoint_nginx.sh:/src/entrypoint_nginx.sh
+    networks:
+      - nginx_network
+    depends_on:
+      - backend
+    command: ./src/entrypoint_nginx.sh
+    environment:
+      - DOMAIN=${DOMAIN}
+
+  backend:
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend
+    command: bash -c "python ./manage.py migrate ; export IDENTITY=${IDENTITY} ; export DEBUG=${DEBUG} ; python ./manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    networks:
+      - nginx_network
+      - postgres_network
+    environment: *postgres-env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./app:/src/app
+      - ./question:/src/question
+
