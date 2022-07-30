@@ -6,8 +6,8 @@ from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 
 from question.permissions import TeachersOnly, StudentsOnly
-from .models import Question, User
-from .serializers import UserSerializer, QuestionSerializer
+from .models import Question, User, Answer
+from .serializers import UserSerializer, QuestionSerializer, AnswerSerializer
 
 
 class UserViewSet(viewsets.ViewSet):
@@ -53,31 +53,89 @@ class TeacherViewSet(viewsets.ViewSet):
         serializer.save()
         return Response(serializer.data, status=201)
 
-    def partial_update(self, request, pk):
-        data = request.data.copy()
-        question = Question.objects.get(teacher=request.user, id=pk)
-        serializer = QuestionSerializer(data=data, instance=question, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=202)
+    # def partial_update(self, request, pk):
+    #     data = request.data.copy()
+    #     question = Question.objects.get(teacher=request.user, id=pk)
+    #     serializer = QuestionSerializer(data=data, instance=question, partial=True)
+    #     serializer.is_valid(raise_exception=True)
+    #     serializer.save()
+    #     return Response(serializer.data, status=202)
 
-    def retrieve(self, request, pk):
-        question = Question.objects.get(teacher=request.user, id=pk)
-        return Response(QuestionSerializer(question).data)
+    # def retrieve(self, request, pk):
+    #     question = Question.objects.get(teacher=request.user, id=pk)
+    #     return Response(QuestionSerializer(question).data)
 
     def destroy(self, request, pk):
         Question.objects.get(teacher=request.user, id=pk).delete()
         return Response(status=204)
 
+    @action(detail=False, methods=["GET"])
+    def students(self, request):
+        students = User.objects.filter(student=True)
+        return Response(UserSerializer(students, many=True).data)
+
+    @action(detail=True, methods=["GET"])
+    def answers(self, request, pk=None):
+        student = User.objects.get(id=pk, student=True)
+        answers = student.answer_set.filter(question__teacher=request.user)
+        # answers = Answer.objects.filter(student=student, question__teacher=request.user)
+        return Response(AnswerSerializer(answers, many=True).data)
+
+    @action(detail=True, methods=["POST"])
+    def pointing(self, request, pk=None):
+        """
+        data = {
+            student : "pk",
+            answers : {
+                answer_pk : point
+            }
+        }
+        """
+        data = request.data
+        student = User.objects.get(id=data.get("student"), student=True)
+        for answer, point in data.get("answers"):
+            answer = Answer.objects.get(id=answer, student=student)
+            answer.point = point
+            answer.save()
+        return Response(status=202)
+
 
 class StudentViewSet(viewsets.ViewSet):
     permission_classes = [StudentsOnly]
 
-    def list(self, request):
-        teacher_id = request.GET.get("teacher")
-        teacher = User.objects.get(id=teacher_id, student=False)
-        questions = Question.objects.filter(teacher=teacher).exclude(answer__student=request.user, answer__completed=True)
-        return Response(QuestionSerializer(questions, many=True).data)
+    @action(detail=True, methods=["GET"])
+    def questions(self, request, pk=None):
+        questions = Question.objects.filter(teacher__id=pk).exclude(answer__completed=True)
+        if questions.count():
+            return Response(QuestionSerializer(questions, many=True).data)
+        return Response({"error": "The student has already answered the questions"}, status=400)
 
-    def create(self, request):
-        pass
+    @action(detail=True, methods=["GET"])
+    def result(self, request, pk=None):
+        teacher = User.objects.get(id=pk, student=False)
+        answers = teacher.question_set.filter(answer__student=request.user, answer__completed=True)
+        return Response(AnswerSerializer(answers, many=True).data)
+
+    @action(detail=False, methods=["POST"])
+    def answer(self, request):
+        """
+        data = {
+            teacher : "pk",
+            questions : {
+                question_pk : answer
+            },
+
+        }
+        """
+        data = request.data
+        teacher = User.objects.get(id=data.get("teacher"), student=False)
+        for question, answer in data.get("questions").items():
+            question = Question.objects.get(id=question, teacher=teacher)
+            if not question.filter(answer__student=request.user, answer__completed=True).exists():
+                Answer.objects.create(
+                    question=question,
+                    student=request.user,
+                    answer=answer,
+                    completed=True,
+                )
+        return Response(status=201)
