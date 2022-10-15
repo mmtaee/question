@@ -34,6 +34,7 @@ class UserViewSet(viewsets.ViewSet):
 
     @action(detail=True, methods=["GET"], permission_classes=[IsAuthenticated])
     def profile(self, request, pk=None):
+        print("pk : ", pk)
         user = User.objects.get(id=pk)
         return Response({"user": UserSerializer(user).data})
 

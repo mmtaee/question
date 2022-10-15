@@ -7,7 +7,7 @@ auth = {
             "method": "POST",
             "path": "register/",
             "authentication": False,
-            "data": ["first_name", "last_name", "username", "password", "student{BOOLEAN}"],
+            "fields": ["first_name", "last_name", "username", "password", "student{BOOLEAN}"],
         },
         "response": {"status_codes": [201, 400], "data": None},
     },
@@ -16,7 +16,7 @@ auth = {
             "method": "POST",
             "path": "login/",
             "authentication": False,
-            "data": ["username", "password"],
+            "fields": ["username", "password"],
         },
         "response": {"status_codes": [200, 400], "data": ["token", "user"]},
     },
@@ -24,6 +24,7 @@ auth = {
         "request": {
             "method": "GET",
             "path": "{USERID}/profile/",
+            "authentication": True,
         },
         "response": {"status_codes": [200, 404], "data": ["user"]},
     },
@@ -34,70 +35,38 @@ teacher = {
         "request": {
             "method": "GET",
             "path": "/",
+            "authentication": True,
+            "fields": None,
         },
-        "response": {"status_codes": [20, 404], "data": "questions"},
+        "response": {"status_codes": [200, 400], "data": ["list"]},
     },
-    "create_question": {
+    "create question": {
         "request": {
             "method": "POST",
             "path": "/",
-            "data": ["format", "question", "choice{optional}", "teacher_answer", "point{1-5}"],
+            "authentication": True,
+            "fields": ["format", "question", "choice", "teacher_answer"],
         },
-        "response": {"status_codes": [201, 400], "data": "question"},
+        "response": {"status_codes": [200, 400], "data": ["question detail"]},
+        "field help": {"format": "NUMBER=1, SMALL_TEXT=2, LONG_TEXT=3,SELECT_BOX=4,RADIO_BUTTON=5"},
     },
-    "destroy_question": {
+    "delete question": {
         "request": {
             "method": "DELETE",
-            "path": "{QUESTIONPK}/",
+            "path": "{QUESTIONID}/",
+            "authentication": True,
+            "fields": None,
         },
-        "response": {"status_codes": [204, 404], "data": None},
+        "response": {"status_codes": [204, 404]},
     },
-    "students_list": {
+    "students": {
         "request": {
             "method": "GET",
-            "path": "/students/",
+            "path": "students/",
+            "authentication": True,
+            "fields": None,
         },
-        "response": {"status_codes": [200, 404], "data": "students"},
-    },
-    "answers_list": {
-        "request": {
-            "method": "GET",
-            "path": "{STUDENTPK}/answers/",
-        },
-        "response": {"status_codes": [200, 404], "data": "answers"},
-    },
-    "pointing": {
-        "request": {
-            "method": "POST",
-            "path": "{STUDENTPK}/answers/",
-            "data": ["student", "answers{ answer_pk : point }"],
-        },
-        "response": {"status_codes": [200, 404], "data": "answers"},
-    },
-}
-
-student = {
-    "questions_list": {
-        "request": {
-            "method": "GET",
-            "path": "{TEACHERID}/questions/",
-        },
-        "response": {"status_codes": [200, 404], "data": ["questions"]},
-    },
-    "answer": {
-        "request": {
-            "method": "POST",
-            "path": "answer/",
-            "data": ["teacher", "questions : { question_pk : answer }"],
-        },
-        "response": {"status_codes": [201, 404], "data": None},
-    },
-    "result": {
-        "request": {
-            "method": "GET",
-            "path": "{TEACHERID}/result/",
-        },
-        "response": {"status_codes": [200, 404], "data": "answers"},
+        "response": {"status_codes": [204, 404], "data": ["list"]},
     },
 }
 
@@ -113,6 +82,5 @@ def swagger(request):
         },
         "auth": auth,
         "teacher": teacher,
-        "student": student,
     }
     return Response(data.get(_filter) if _filter else data)

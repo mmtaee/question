@@ -8,7 +8,7 @@ upstream api {
 }
 server {
     listen 8080;
-    server_name ${DOMAIN};
+    # server_name ${DOMAIN};
     location ~ ^/(api|help) {
         proxy_pass http://api;
         proxy_set_header X-Real-IP $remote_addr;

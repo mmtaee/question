@@ -30,7 +30,7 @@ class Question(models.Model):
     teacher = models.ForeignKey(User, on_delete=models.CASCADE)
     format = PSIField(choices=FORMAT_CHOICES, validators=[MIN(1), MAX(5)])
     question = models.TextField()
-    choice = models.JSONField()
+    choice = models.JSONField(null=True, blank=True)
     teacher_answer = models.TextField(null=True, blank=True)
     point = PSIField(_("PRIORITY"), default=3, validators=[MIN(1), MAX(5)])
 
