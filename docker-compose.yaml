@@ -57,7 +57,7 @@ services:
     container_name: backend
     command: bash -c "python ./manage.py migrate ; export IDENTITY=${IDENTITY} ; export DEBUG=${DEBUG} ; python ./manage.py runserver 0.0.0.0:8000"
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     networks:
       - nginx_network
       - postgres_network
